@@ -6,6 +6,17 @@
   "deduplicate_on": ["customer_id"],
   "keep": "first",
   "date_columns": ["signup_date"],
+  "date_options": {
+    "signup_date": {
+      "dayfirst": true
+    }
+  },
   "numeric_columns": ["revenue"],
+  "numeric_options": {
+    "revenue": {
+      "decimal_separator": ".",
+      "thousands_separator": ","
+    }
+  },
   "required_columns": ["customer_id", "email_address"]
 }
