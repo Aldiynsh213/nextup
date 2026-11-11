@@ -78,16 +78,28 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
     if not isinstance(cleaning, dict) or not isinstance(combine, dict):
         raise DataValidationError("cleaning and combine settings must be JSON objects.")
 
+    mode = combine.get("mode", "append")
+    deduplicate_after = bool(combine.get("deduplicate_after_combine", False))
+    if deduplicate_after and mode != "append":
+        raise DataValidationError(
+            "deduplicate_after_combine is supported only with append mode."
+        )
+
+    # When a global deduplication pass is requested, keep every source row until
+    # after append. This catches duplicate keys that appear in different files.
+    per_file_cleaning = dict(cleaning)
+    if deduplicate_after:
+        per_file_cleaning["deduplicate"] = False
+
     frames = []
     metrics = []
     for input_path in inputs:
         cleaned, item_metrics = clean_dataframe(
-            read_table(resolve(input_path)), cleaning
+            read_table(resolve(input_path)), per_file_cleaning
         )
         frames.append(cleaned)
         metrics.append({"input": input_path, **item_metrics})
 
-    mode = combine.get("mode", "append")
     combined = combine_frames(
         frames,
         mode=mode,
@@ -99,8 +111,8 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
     )
 
     dedup_metrics = None
-    if combine.get("deduplicate_after_combine", False):
-        dedup_keys = combine.get("deduplicate_on") or cleaning.get("deduplicate_on")
+    dedup_keys = combine.get("deduplicate_on") or cleaning.get("deduplicate_on")
+    if deduplicate_after:
         if not dedup_keys:
             raise DataValidationError(
                 "deduplicate_after_combine requires combine.deduplicate_on "
@@ -114,11 +126,7 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
 
     output = config.get("output", "output/combined.xlsx")
     write_table(combined, resolve(output))
-    profile_keys = (
-        combine.get("deduplicate_on")
-        or cleaning.get("deduplicate_on")
-        or combine.get("on")
-    )
+    profile_keys = dedup_keys or combine.get("on")
     report = {
         "pipeline": config_file.name,
         "input_count": len(inputs),
@@ -162,12 +170,25 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "combine":
             cleaning = _clean_options(args.cleaning_config)
+            deduplicate_after = args.deduplicate_after_combine
+            if deduplicate_after and args.mode != "append":
+                raise DataValidationError(
+                    "--deduplicate-after-combine can only be used with --mode append."
+                )
+
+            per_file_cleaning = dict(cleaning)
+            if deduplicate_after:
+                per_file_cleaning["deduplicate"] = False
+
             frames = []
             metrics = []
             for path in args.inputs:
-                cleaned, item_metrics = clean_dataframe(read_table(path), cleaning)
+                cleaned, item_metrics = clean_dataframe(
+                    read_table(path), per_file_cleaning
+                )
                 frames.append(cleaned)
                 metrics.append({"input": path, **item_metrics})
+
             combined = combine_frames(
                 frames,
                 mode=args.mode,
@@ -180,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
 
             dedup_metrics = None
             dedup_keys = args.deduplicate_on or cleaning.get("deduplicate_on")
-            if args.deduplicate_after_combine:
+            if deduplicate_after:
                 if not dedup_keys:
                     raise DataValidationError(
                         "--deduplicate-after-combine requires --deduplicate-on "
