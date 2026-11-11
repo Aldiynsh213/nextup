@@ -1,0 +1,4 @@
+Customer ID,Full Name,Email Address,Signup Date,Revenue,Customer Segment
+0004,Katherine Johnson,katherine@example.test,2025-01-13,1430.00,Enterprise
+0005,John von Neumann,john@example.test,2025-01-14,760.25,SMB
+0006,  ,missing@example.test,invalid-date,520.00,SMB
