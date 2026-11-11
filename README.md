@@ -143,7 +143,7 @@ sheetflow run --config benchmarks/pipeline.json
 sheetflow run --config benchmarks/join-pipeline.json
 ```
 
-GitHub Actions runs both the append and customer-order join checks. See [the benchmark notes](benchmarks/README.md) for the data layout and how to compare runtimes. The generator creates synthetic data; the benchmark does not claim a production throughput figure.
+GitHub Actions runs both the append and customer-order join checks. See [the benchmark notes](benchmarks/README.md) for the data layout and how to compare runtimes. The [data quality notes](docs/quality-controls.md) explain the validation and reporting rules. The generator creates synthetic data; the benchmark does not claim a production throughput figure.
 
 ## Run the tests
 
