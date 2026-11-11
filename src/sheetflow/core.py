@@ -259,10 +259,24 @@ def _parse_date_series(
 
         parsed_values.append(parsed_value)
 
-    return pd.Series(
-        pd.to_datetime(parsed_values, errors="coerce"),
-        index=series.index,
+    # Each value has already been parsed individually. Construct timestamps one
+    # at a time so pandas does not infer one format from the first row and
+    # coerce later, valid formats to NaT.
+    timestamps = [
+        pd.NaT if pd.isna(value) else pd.Timestamp(value)
+        for value in parsed_values
+    ]
+    has_timezone = any(
+        isinstance(value, pd.Timestamp) and value.tz is not None
+        for value in timestamps
+        if not pd.isna(value)
     )
+    if has_timezone:
+        return pd.Series(
+            pd.to_datetime(timestamps, errors="coerce", utc=True),
+            index=series.index,
+        )
+    return pd.Series(timestamps, index=series.index, dtype="datetime64[ns]")
 
 
 def _record_row_issues(
