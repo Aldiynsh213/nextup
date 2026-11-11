@@ -194,29 +194,36 @@ def _parse_date_series(
     config = dict(options or {})
     dayfirst = bool(config.get("dayfirst", False))
     formats = config.get("formats", [])
+    if not isinstance(formats, Sequence) or isinstance(formats, str):
+        raise DataValidationError("date formats must be a JSON array of format strings.")
+
     parsed = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
 
-    for date_format in formats:
+    def try_format(date_format: str, *, iso: bool = False) -> None:
         pending = parsed.isna() & series.notna()
         if not pending.any():
-            break
-        candidate = pd.to_datetime(
-            series.loc[pending],
-            format=date_format,
-            errors="coerce",
-            dayfirst=dayfirst,
-        )
+            return
+        kwargs = {"format": date_format, "errors": "coerce"}
+        if not iso:
+            kwargs["dayfirst"] = dayfirst
+        candidate = pd.to_datetime(series.loc[pending], **kwargs)
         parsed.loc[pending] = candidate
 
-    # ISO dates have an unambiguous year-month-day order. Parse them before
-    # applying dayfirst to locale-dependent strings such as 12/03/2025.
-    pending = parsed.isna() & series.notna()
-    if pending.any():
-        parsed.loc[pending] = pd.to_datetime(
-            series.loc[pending],
-            format="ISO8601",
-            errors="coerce",
-        )
+    for date_format in formats:
+        try_format(date_format)
+
+    # ISO dates have an unambiguous year-month-day order.
+    try_format("ISO8601", iso=True)
+
+    locale_formats = (
+        ["%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d/%m/%y", "%d-%m-%y",
+         "%d %b %Y", "%d %B %Y"]
+        if dayfirst
+        else ["%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y", "%m/%d/%y", "%m-%d-%y",
+              "%b %d %Y", "%B %d, %Y"]
+    )
+    for date_format in locale_formats:
+        try_format(date_format)
 
     pending = parsed.isna() & series.notna()
     if pending.any():
@@ -227,7 +234,6 @@ def _parse_date_series(
             dayfirst=dayfirst,
         )
     return parsed
-
 
 def clean_dataframe(
     frame: pd.DataFrame,
