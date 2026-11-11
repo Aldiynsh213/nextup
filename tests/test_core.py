@@ -102,7 +102,6 @@ def test_mixed_date_formats_respect_dayfirst():
         {
             "date_columns": ["order_date"],
             "date_options": {"order_date": {"dayfirst": True}},
-            "drop_empty_rows": False,
             "deduplicate": False,
             "drop_empty_rows": False,
         },
