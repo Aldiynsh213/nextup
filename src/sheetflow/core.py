@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 import unicodedata
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from numbers import Number
 from typing import Any
 
@@ -265,6 +265,43 @@ def _parse_date_series(
         index=series.index,
     )
 
+
+def _record_row_issues(
+    metrics: dict[str, Any],
+    series: pd.Series,
+    invalid_mask: pd.Series,
+    column: str,
+    code: str,
+    sample_limit: int,
+    include_values: bool,
+) -> None:
+    """Record issue counts and keep a bounded sample for review."""
+    count = int(invalid_mask.sum())
+    if not count:
+        return
+    counts = metrics["row_issue_counts"]
+    counts[code] = counts.get(code, 0) + count
+
+    remaining = max(0, sample_limit - len(metrics["row_issue_samples"]))
+    if not remaining:
+        return
+    for position, (value, invalid) in enumerate(
+        zip(series.tolist(), invalid_mask.tolist(), strict=True)
+    ):
+        if not invalid:
+            continue
+        sample = {
+            "row_number": position + 2,
+            "column": column,
+            "issue": code,
+        }
+        if include_values:
+            sample["original_value"] = str(value)
+        metrics["row_issue_samples"].append(sample)
+        remaining -= 1
+        if remaining <= 0:
+            break
+
 def clean_dataframe(
     frame: pd.DataFrame,
     config: Mapping[str, Any] | None = None,
@@ -281,6 +318,9 @@ def clean_dataframe(
         "empty_rows_removed": 0,
         "coerced_values": {},
         "conversion_details": {},
+        "row_issue_counts": {},
+        "row_issue_samples": [],
+        "schema_validation": {"passed": True},
     }
 
     rename_map = options.get("rename_columns", {})
@@ -311,8 +351,20 @@ def clean_dataframe(
 
     numeric_options = options.get("numeric_options", {})
     date_options = options.get("date_options", {})
-    if not isinstance(numeric_options, Mapping) or not isinstance(date_options, Mapping):
-        raise DataValidationError("numeric_options and date_options must be JSON objects.")
+    validation = options.get("validation", {})
+    if (
+        not isinstance(numeric_options, Mapping)
+        or not isinstance(date_options, Mapping)
+        or not isinstance(validation, Mapping)
+    ):
+        raise DataValidationError(
+            "numeric_options, date_options, and validation must be JSON objects."
+        )
+
+    sample_limit = options.get("max_issue_samples", 100)
+    if not isinstance(sample_limit, int) or isinstance(sample_limit, bool) or sample_limit < 0:
+        raise DataValidationError("max_issue_samples must be a non-negative integer.")
+    include_invalid_values = bool(options.get("include_invalid_values", False))
 
     for column in numeric_columns:
         original = int(result[column].notna().sum())
@@ -322,6 +374,15 @@ def clean_dataframe(
         converted = _parse_numeric_series(result[column], column_options)
         failed = max(0, original - int(converted.notna().sum()))
         metrics["coerced_values"][column] = failed
+        _record_row_issues(
+            metrics,
+            result[column],
+            result[column].notna() & converted.isna(),
+            column,
+            "invalid_numeric",
+            sample_limit,
+            include_invalid_values,
+        )
         metrics["conversion_details"][column] = {
             "kind": "numeric",
             "input_non_null": original,
@@ -340,6 +401,15 @@ def clean_dataframe(
         converted = _parse_date_series(result[column], column_options)
         failed = max(0, original - int(converted.notna().sum()))
         metrics["coerced_values"][column] = failed
+        _record_row_issues(
+            metrics,
+            result[column],
+            result[column].notna() & converted.isna(),
+            column,
+            "invalid_date",
+            sample_limit,
+            include_invalid_values,
+        )
         metrics["conversion_details"][column] = {
             "kind": "date",
             "input_non_null": original,
@@ -349,6 +419,67 @@ def clean_dataframe(
             "formats": list(column_options.get("formats", [])),
         }
         result[column] = converted
+
+
+    not_null_columns = list(validation.get("not_null_columns", []))
+    unique_columns = list(validation.get("unique_columns", []))
+    allowed_values = validation.get("allowed_values", {})
+    if not isinstance(allowed_values, Mapping):
+        raise DataValidationError("validation.allowed_values must be a JSON object.")
+    _ensure_columns(result, not_null_columns, "validation.not_null_columns")
+    _ensure_columns(result, unique_columns, "validation.unique_columns")
+    _ensure_columns(result, list(allowed_values.keys()), "validation.allowed_values")
+
+    validation_counts: dict[str, dict[str, int]] = {
+        "not_null_violations": {},
+        "unique_violations": {},
+        "allowed_value_violations": {},
+    }
+    for column in not_null_columns:
+        invalid_mask = result[column].isna()
+        count = int(invalid_mask.sum())
+        validation_counts["not_null_violations"][column] = count
+        _record_row_issues(
+            metrics, result[column], invalid_mask, column,
+            "missing_required_value", sample_limit, include_invalid_values
+        )
+
+    for column in unique_columns:
+        invalid_mask = result[column].notna() & result[column].duplicated(keep=False)
+        count = int(invalid_mask.sum())
+        validation_counts["unique_violations"][column] = count
+        _record_row_issues(
+            metrics, result[column], invalid_mask, column,
+            "duplicate_value", sample_limit, include_invalid_values
+        )
+
+    for column, allowed in allowed_values.items():
+        if not isinstance(allowed, Sequence) or isinstance(allowed, (str, bytes)):
+            raise DataValidationError(
+                f"validation.allowed_values for {column} must be an array."
+            )
+        invalid_mask = result[column].notna() & ~result[column].isin(list(allowed))
+        count = int(invalid_mask.sum())
+        validation_counts["allowed_value_violations"][column] = count
+        _record_row_issues(
+            metrics, result[column], invalid_mask, column,
+            "value_not_allowed", sample_limit, include_invalid_values
+        )
+
+    violation_total = sum(
+        count
+        for group in validation_counts.values()
+        for count in group.values()
+    )
+    metrics["schema_validation"] = {
+        "passed": violation_total == 0,
+        "violation_count": violation_total,
+        **validation_counts,
+    }
+    if validation.get("fail_on_error", False) and violation_total:
+        raise DataValidationError(
+            f"Schema validation found {violation_total} row-level violation(s)."
+        )
 
     if options.get("drop_empty_rows", True):
         empty_mask = result.isna().all(axis=1)
