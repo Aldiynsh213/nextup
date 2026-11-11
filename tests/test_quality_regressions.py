@@ -62,7 +62,7 @@ def test_mixed_date_parser_respects_dayfirst():
 
     expected = pd.Timestamp("2025-03-12")
     assert cleaned.loc[0, "order_date"] == expected
-    assert cleaned.loc[1, "order_date"] == expected
+    assert cleaned.loc[1, "order_date"] == expected, metrics
     assert cleaned.loc[2, "order_date"] == expected
     assert pd.isna(cleaned.loc[3, "order_date"])
     assert metrics["coerced_values"]["order_date"] == 1
