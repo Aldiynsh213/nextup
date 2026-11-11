@@ -148,3 +148,74 @@ def test_numeric_options_must_be_objects():
                 "numeric_options": [],
             },
         )
+
+
+def test_conversion_issues_include_row_numbers_without_raw_values_by_default():
+    frame = pd.DataFrame({"amount": ["12.50", "not-money"]})
+    _, metrics = clean_dataframe(
+        frame,
+        {
+            "numeric_columns": ["amount"],
+            "drop_empty_rows": False,
+        },
+    )
+
+    assert metrics["row_issue_counts"]["invalid_numeric"] == 1
+    assert metrics["row_issue_samples"] == [
+        {"row_number": 3, "column": "amount", "issue": "invalid_numeric"}
+    ]
+
+
+def test_conversion_issue_values_can_be_included_explicitly():
+    frame = pd.DataFrame({"amount": ["not-money"]})
+    _, metrics = clean_dataframe(
+        frame,
+        {
+            "numeric_columns": ["amount"],
+            "drop_empty_rows": False,
+            "include_invalid_values": True,
+        },
+    )
+
+    assert metrics["row_issue_samples"][0]["original_value"] == "not-money"
+
+
+def test_schema_validation_reports_missing_duplicate_and_unallowed_values():
+    frame = pd.DataFrame(
+        {
+            "order_id": ["A-1", "A-1", "A-2"],
+            "status": ["paid", "unknown", None],
+        }
+    )
+    _, metrics = clean_dataframe(
+        frame,
+        {
+            "deduplicate": False,
+            "validation": {
+                "not_null_columns": ["status"],
+                "unique_columns": ["order_id"],
+                "allowed_values": {"status": ["paid", "pending", "cancelled"]},
+            },
+        },
+    )
+
+    validation = metrics["schema_validation"]
+    assert validation["passed"] is False
+    assert validation["violation_count"] == 4
+    assert validation["not_null_violations"]["status"] == 1
+    assert validation["unique_violations"]["order_id"] == 2
+    assert validation["allowed_value_violations"]["status"] == 1
+
+
+def test_schema_validation_can_fail_fast():
+    frame = pd.DataFrame({"status": ["unknown"]})
+    with pytest.raises(DataValidationError, match="Schema validation"):
+        clean_dataframe(
+            frame,
+            {
+                "validation": {
+                    "allowed_values": {"status": ["paid", "pending"]},
+                    "fail_on_error": True,
+                }
+            },
+        )
