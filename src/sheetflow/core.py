@@ -7,6 +7,8 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from numbers import Number
+
+from dateutil.parser import ParserError, parse as parse_date
 from typing import Any
 
 import pandas as pd
@@ -250,13 +252,10 @@ def _parse_date_series(
                     continue
 
         if parsed_value is None:
-            fallback = pd.to_datetime(
-                text,
-                format="mixed",
-                errors="coerce",
-                dayfirst=dayfirst,
-            )
-            parsed_value = fallback
+            try:
+                parsed_value = parse_date(text, dayfirst=dayfirst, fuzzy=False)
+            except (ParserError, ValueError, OverflowError):
+                parsed_value = pd.NaT
 
         parsed_values.append(parsed_value)
 
