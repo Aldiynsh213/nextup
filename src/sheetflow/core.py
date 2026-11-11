@@ -271,6 +271,8 @@ def clean_dataframe(
     for column in numeric_columns:
         original = int(result[column].notna().sum())
         column_options = numeric_options.get(column, {})
+        if not isinstance(column_options, Mapping):
+            raise DataValidationError(f"numeric_options for {column} must be a JSON object.")
         converted = _parse_numeric_series(result[column], column_options)
         failed = max(0, original - int(converted.notna().sum()))
         metrics["coerced_values"][column] = failed
