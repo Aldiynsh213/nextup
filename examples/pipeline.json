@@ -8,15 +8,40 @@
     "trim_strings": true,
     "drop_empty_rows": true,
     "deduplicate": true,
-    "deduplicate_on": ["customer_id"],
+    "deduplicate_on": [
+      "customer_id"
+    ],
     "keep": "first",
-    "date_columns": ["signup_date"],
-    "numeric_columns": ["revenue"],
-    "required_columns": ["customer_id", "email_address"]
+    "date_columns": [
+      "signup_date"
+    ],
+    "numeric_columns": [
+      "revenue"
+    ],
+    "required_columns": [
+      "customer_id",
+      "email_address"
+    ],
+    "numeric_options": {
+      "revenue": {
+        "decimal_separator": ".",
+        "thousands_separator": ","
+      }
+    },
+    "date_options": {
+      "signup_date": {
+        "dayfirst": true
+      }
+    }
   },
   "combine": {
     "mode": "append",
-    "source_column": "source_file"
+    "source_column": "source_file",
+    "deduplicate_after_combine": true,
+    "deduplicate_on": [
+      "customer_id"
+    ],
+    "keep": "first"
   },
   "output": "../output/cleaned_customers.xlsx",
   "report": "../output/quality_report.json"
