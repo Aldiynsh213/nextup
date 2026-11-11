@@ -41,5 +41,7 @@ jobs:
         run: python benchmarks/generate_orders.py --output-dir benchmarks/generated
       - name: Run the 30,900-row pipeline
         run: sheetflow run --config benchmarks/pipeline.json
-      - name: Verify row counts and data quality
+      - name: Run the customer-order join
+        run: sheetflow run --config benchmarks/join-pipeline.json
+      - name: Verify append and join results
         run: python benchmarks/verify_benchmark.py
