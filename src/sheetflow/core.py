@@ -208,6 +208,16 @@ def _parse_date_series(
         )
         parsed.loc[pending] = candidate
 
+    # ISO dates have an unambiguous year-month-day order. Parse them before
+    # applying dayfirst to locale-dependent strings such as 12/03/2025.
+    pending = parsed.isna() & series.notna()
+    if pending.any():
+        parsed.loc[pending] = pd.to_datetime(
+            series.loc[pending],
+            format="ISO8601",
+            errors="coerce",
+        )
+
     pending = parsed.isna() & series.notna()
     if pending.any():
         parsed.loc[pending] = pd.to_datetime(
