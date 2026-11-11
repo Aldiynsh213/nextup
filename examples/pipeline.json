@@ -1,0 +1,23 @@
+{
+  "inputs": [
+    "data/customers_part_a.csv",
+    "data/customers_part_b.csv"
+  ],
+  "cleaning": {
+    "normalize_columns": true,
+    "trim_strings": true,
+    "drop_empty_rows": true,
+    "deduplicate": true,
+    "deduplicate_on": ["customer_id"],
+    "keep": "first",
+    "date_columns": ["signup_date"],
+    "numeric_columns": ["revenue"],
+    "required_columns": ["customer_id", "email_address"]
+  },
+  "combine": {
+    "mode": "append",
+    "source_column": "source_file"
+  },
+  "output": "../output/cleaned_customers.xlsx",
+  "report": "../output/quality_report.json"
+}
