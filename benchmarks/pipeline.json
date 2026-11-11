@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "generated/orders_a.csv",
+    "generated/orders_b.csv"
+  ],
+  "cleaning": {
+    "normalize_columns": true,
+    "trim_strings": true,
+    "drop_empty_rows": true,
+    "deduplicate": true,
+    "deduplicate_on": ["order_id"],
+    "keep": "first",
+    "date_columns": ["order_date"],
+    "date_options": {
+      "order_date": {
+        "dayfirst": true
+      }
+    },
+    "numeric_columns": ["amount"],
+    "numeric_options": {
+      "amount": {
+        "decimal_separator": ".",
+        "thousands_separator": ","
+      }
+    },
+    "required_columns": ["order_id", "customer_id", "amount"]
+  },
+  "combine": {
+    "mode": "append",
+    "source_column": "source_file",
+    "deduplicate_after_combine": true,
+    "deduplicate_on": ["order_id"],
+    "keep": "first"
+  },
+  "output": "../output/orders_cleaned.xlsx",
+  "report": "../output/orders_quality.json"
+}
