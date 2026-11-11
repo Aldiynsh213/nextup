@@ -4,7 +4,12 @@ import pandas as pd
 import pytest
 
 from sheetflow.cli import main
-from sheetflow.core import DataValidationError, clean_dataframe, deduplicate_dataframe, profile_dataframe
+from sheetflow.core import (
+    DataValidationError,
+    clean_dataframe,
+    deduplicate_dataframe,
+    profile_dataframe,
+)
 from sheetflow.io import read_table
 
 
