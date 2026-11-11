@@ -126,7 +126,9 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
 
     output = config.get("output", "output/combined.xlsx")
     write_table(combined, resolve(output))
-    profile_keys = dedup_keys or combine.get("on")
+    profile_keys = combine.get("profile_key_columns") or dedup_keys
+    if profile_keys is None and mode == "append":
+        profile_keys = combine.get("on")
     report = {
         "pipeline": config_file.name,
         "input_count": len(inputs),
@@ -217,7 +219,8 @@ def main(argv: list[str] | None = None) -> int:
                 "post_combine_deduplication": dedup_metrics,
                 "output": args.output,
                 "output_profile": profile_dataframe(
-                    combined, key_columns=dedup_keys or args.on
+                    combined,
+                    key_columns=dedup_keys or (args.on if args.mode == "append" else None)
                 ),
             }
             if args.report:
