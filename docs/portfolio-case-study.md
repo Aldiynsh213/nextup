@@ -2,7 +2,7 @@
 
 ## The situation
 
-Imagine receiving two customer exports from different teams. One file calls a field \`Customer ID\`, while the other uses \`Customer ID\` with slightly different spacing. Some rows are repeated. A date is entered in the wrong format, and one revenue value is not a number.
+Imagine receiving two customer exports from different teams. One file calls a field `Customer ID`, while the other uses `Customer ID` with slightly different spacing. Some rows are repeated. A date is entered in the wrong format, and one revenue value is not a number.
 
 This is a small example, but it is the kind of cleanup that can take time when the same steps have to be repeated every week.
 
@@ -12,7 +12,7 @@ I put together SheetFlow so the cleanup rules can be saved and run again instead
 
 The sample workflow:
 
-1. Reads both CSV files and keeps customer IDs such as \`0001\` as text.
+1. Reads both CSV files and keeps customer IDs such as `0001` as text.
 2. Renames the headers to a consistent format and removes extra spaces from text.
 3. Converts the configured signup date and revenue columns.
 4. Removes repeated customer IDs using the rule in the configuration.
