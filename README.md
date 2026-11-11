@@ -18,6 +18,8 @@ The project uses Python and pandas. The examples contain synthetic records, and 
 - Append files with different column orders and keep the source filename for each row.
 - Join related tables using one or more keys, with optional relationship checks.
 - Report both exact duplicate rows and duplicates based on business keys.
+- Check required values, unique columns, and allowed-value lists.
+- Include row numbers for conversion and schema issues in the quality report.
 - Run the same steps again from a JSON configuration file.
 
 Files are processed on the machine where SheetFlow runs. The tool does not send datasets to an external service.
@@ -113,6 +115,12 @@ For example:
 \`\`\`
 
 The date parser can read common mixed formats. A date such as \`03/04/2025\` is still ambiguous without a locale rule, so set \`dayfirst\` to match the source. Values that cannot be parsed are counted in the report. Malformed number grouping is rejected instead of being silently stripped.
+
+## Row-level checks
+
+Column presence checks and row-level validation are separate. Use the validation settings to check values that must not be blank, columns that should be unique, or fields that must match an allowed list. Set fail_on_error to true when a workflow should stop as soon as those rules are broken.
+
+Conversion and validation reports include a bounded sample of row numbers and issue types. Raw invalid values are not copied into the report by default. Set include_invalid_values to true only when the report is stored somewhere appropriate for the data it contains.
 
 ## Duplicate handling
 
