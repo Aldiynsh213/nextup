@@ -137,8 +137,8 @@ def _parse_numeric_value(
 
     # Remove common currency codes and Unicode currency symbols, but do not
     # silently discard arbitrary letters that could indicate malformed data.
-    text = re.sub(r"(?i)^(?:USD|IDR|EUR|GBP|JPY|RP)\\s*", "", text)
-    text = re.sub(r"(?i)\\s*(?:USD|IDR|EUR|GBP|JPY|RP)$", "", text)
+    text = re.sub(r"(?i)^(?:USD|IDR|EUR|GBP|JPY|RP)\s*", "", text)
+    text = re.sub(r"(?i)\s*(?:USD|IDR|EUR|GBP|JPY|RP)$", "", text)
     text = "".join(
         character
         for character in text
