@@ -51,3 +51,64 @@ def test_json_pipeline_runs_end_to_end(tmp_path):
     result = read_table(tmp_path / "result.xlsx")
     assert list(result["customer_id"]) == ["0001", "0002"]
     assert (tmp_path / "quality.json").exists()
+
+
+def test_pipeline_deduplicates_after_append_across_source_files(tmp_path):
+    source_a = tmp_path / "orders_a.csv"
+    source_b = tmp_path / "orders_b.csv"
+    source_a.write_text(
+        "order_id,amount\n001,10.00\n002,20.00\n",
+        encoding="utf-8",
+    )
+    source_b.write_text(
+        "order_id,amount\n002,20.00\n003,30.00\n",
+        encoding="utf-8",
+    )
+    config = {
+        "inputs": [source_a.name, source_b.name],
+        "cleaning": {
+            "normalize_columns": True,
+            "deduplicate": True,
+            "deduplicate_on": ["order_id"],
+            "numeric_columns": ["amount"],
+        },
+        "combine": {
+            "mode": "append",
+            "source_column": "source_file",
+            "deduplicate_after_combine": True,
+            "deduplicate_on": ["order_id"],
+        },
+        "output": "orders_clean.xlsx",
+        "report": "orders_quality.json",
+    }
+    config_path = tmp_path / "pipeline.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    assert main(["run", "--config", str(config_path)]) == 0
+    result = read_table(tmp_path / "orders_clean.xlsx")
+    report = json.loads((tmp_path / "orders_quality.json").read_text(encoding="utf-8"))
+
+    assert result["order_id"].tolist() == ["001", "002", "003"]
+    assert report["post_combine_deduplication"]["duplicates_removed"] == 1
+    assert report["output_profile"]["business_key"]["duplicate_rows"] == 0
+
+
+def test_pipeline_rejects_post_combine_dedup_for_join_mode(tmp_path):
+    source_a = tmp_path / "a.csv"
+    source_b = tmp_path / "b.csv"
+    source_a.write_text("id\n001\n", encoding="utf-8")
+    source_b.write_text("id\n001\n", encoding="utf-8")
+    config = {
+        "inputs": [source_a.name, source_b.name],
+        "cleaning": {"deduplicate": False},
+        "combine": {
+            "mode": "join",
+            "on": ["id"],
+            "deduplicate_after_combine": True,
+            "deduplicate_on": ["id"],
+        },
+        "output": "result.xlsx",
+    }
+    config_path = tmp_path / "pipeline.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    assert main(["run", "--config", str(config_path)]) == 2
