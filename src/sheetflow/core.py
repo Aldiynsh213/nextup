@@ -244,6 +244,20 @@ def _parse_date_series(
             pass
 
         if parsed_value is None:
+            year_first = re.fullmatch(r"(\\d{4})[./-](\\d{1,2})[./-](\\d{1,2})", text)
+            day_month_year = re.fullmatch(r"(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})", text)
+            try:
+                if year_first:
+                    year, month, day = (int(part) for part in year_first.groups())
+                    parsed_value = datetime(year, month, day)
+                elif day_month_year:
+                    first, second, year = (int(part) for part in day_month_year.groups())
+                    month, day = (second, first) if dayfirst else (first, second)
+                    parsed_value = datetime(year, month, day)
+            except ValueError:
+                parsed_value = None
+
+        if parsed_value is None:
             for date_format in candidate_formats:
                 try:
                     parsed_value = datetime.strptime(text, date_format)
