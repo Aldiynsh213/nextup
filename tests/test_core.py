@@ -48,7 +48,13 @@ def test_currency_parser_handles_usd_and_indonesian_formats():
     frame = pd.DataFrame(
         {
             "usd_amount": ["$1,234.50", "(USD 25.00)", "not money", "US$1,000.00", "$12,34.50"],
-            "idr_amount": ["Rp1.234,50", "IDR 2.000,00", "Rp 500,00"],
+            "idr_amount": [
+                "Rp1.234,50",
+                "IDR 2.000,00",
+                "Rp 500,00",
+                "Rp 750,00",
+                "Rp 1.000,00",
+            ],
         }
     )
     cleaned, metrics = clean_dataframe(
@@ -71,7 +77,9 @@ def test_currency_parser_handles_usd_and_indonesian_formats():
     assert cleaned["usd_amount"].iloc[0] == pytest.approx(1234.50)
     assert cleaned["usd_amount"].iloc[1] == pytest.approx(-25.00)
     assert pd.isna(cleaned["usd_amount"].iloc[2])
-    assert cleaned["idr_amount"].tolist() == pytest.approx([1234.50, 2000.00, 500.00])
+    assert cleaned["idr_amount"].tolist() == pytest.approx(
+        [1234.50, 2000.00, 500.00, 750.00, 1000.00]
+    )
     assert cleaned["usd_amount"].iloc[3] == pytest.approx(1000.00)
     assert pd.isna(cleaned["usd_amount"].iloc[4])
     assert metrics["coerced_values"]["usd_amount"] == 2
@@ -95,6 +103,7 @@ def test_mixed_date_formats_respect_dayfirst():
             "date_columns": ["order_date"],
             "date_options": {"order_date": {"dayfirst": True}},
             "deduplicate": False,
+            "drop_empty_rows": False,
         },
     )
     expected = pd.Timestamp("2025-03-12")
