@@ -1,0 +1,20 @@
+{
+  "inputs": [
+    "data/customers_for_join.csv",
+    "data/orders.csv"
+  ],
+  "cleaning": {
+    "normalize_columns": true,
+    "trim_strings": true,
+    "drop_empty_rows": true,
+    "deduplicate": true
+  },
+  "combine": {
+    "mode": "join",
+    "on": ["customer_id"],
+    "how": "left",
+    "validate": "one_to_many"
+  },
+  "output": "../output/customer_orders.xlsx",
+  "report": "../output/customer_orders_quality.json"
+}
