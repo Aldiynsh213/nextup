@@ -56,6 +56,7 @@ def test_mixed_date_parser_respects_dayfirst():
         {
             "date_columns": ["order_date"],
             "date_options": {"order_date": {"dayfirst": True}},
+            "deduplicate": False,
             "drop_empty_rows": False,
         },
     )
