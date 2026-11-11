@@ -1,0 +1,11 @@
+{
+  "normalize_columns": true,
+  "trim_strings": true,
+  "drop_empty_rows": true,
+  "deduplicate": true,
+  "deduplicate_on": ["customer_id"],
+  "keep": "first",
+  "date_columns": ["signup_date"],
+  "numeric_columns": ["revenue"],
+  "required_columns": ["customer_id", "email_address"]
+}
