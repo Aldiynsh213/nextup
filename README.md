@@ -112,7 +112,7 @@ For example:
 }
 \`\`\`
 
-The date parser can read common mixed formats. A date such as \`03/04/2025\` is still ambiguous without a locale rule, so set \`dayfirst\` to match the source. Values that cannot be parsed are counted in the report.
+The date parser can read common mixed formats. A date such as \`03/04/2025\` is still ambiguous without a locale rule, so set \`dayfirst\` to match the source. Values that cannot be parsed are counted in the report. Malformed number grouping is rejected instead of being silently stripped.
 
 ## Duplicate handling
 
@@ -121,9 +121,20 @@ There are two separate checks:
 - \`duplicate_rows\` counts rows that match across every column.
 - \`business_key\` counts repeated values for the key columns you choose, even when a source column makes the full rows different.
 
-For an append workflow, set \`combine.deduplicate_after_combine\` to \`true\` and provide \`combine.deduplicate_on\`. This is useful when the same order appears in more than one export.
+For an append workflow, set \`combine.deduplicate_after_combine\` to \`true\` and provide \`combine.deduplicate_on\`. SheetFlow keeps the source rows until after append, then applies the key rule once to the combined data.
 
 Rows with missing business keys are kept during key-based deduplication. SheetFlow cannot safely decide whether two records without an ID are the same record.
+
+## Reproduce the 30,900-row test
+
+A small generator creates two CSV files with different column orders, repeated order IDs, mixed date formats, and currency values. The expected result is 30,000 unique orders after global deduplication.
+
+\`\`\`bash
+python benchmarks/generate_orders.py --output-dir benchmarks/generated
+sheetflow run --config benchmarks/pipeline.json
+\`\`\`
+
+See [the benchmark notes](benchmarks/README.md) for the data layout and how to compare runtimes. The generator creates synthetic data; the benchmark does not claim a production throughput figure.
 
 ## Run the tests
 
@@ -146,6 +157,7 @@ Before using the result for reporting, check the cleaning report and make sure t
 
 - \`src/sheetflow/\` — data cleaning, file handling, and command-line code.
 - \`examples/\` — sample input files and JSON configurations.
+- \`benchmarks/\` — reproducible synthetic test data generator.
 - \`tests/\` — unit tests and regression tests.
 - \`docs/\` — notes about the sample scenario and data-quality checks.
 
