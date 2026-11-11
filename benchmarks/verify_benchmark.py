@@ -46,6 +46,17 @@ def main() -> int:
         ]["duplicate_rows"],
         "date_conversion_failures": date_failures,
     }
+    join_report = json.loads(
+        (root / "output" / "orders_join_quality.json").read_text(encoding="utf-8")
+    )
+    joined = read_table(root / "output" / "orders_joined.xlsx")
+    assert len(joined) == 30_000
+    assert joined["order_id"].nunique() == 30_000
+    assert joined["customer_name"].notna().all()
+    assert join_report["output_profile"]["business_key"]["duplicate_rows"] == 0
+
+    summary["joined_rows"] = len(joined)
+    summary["joined_unique_orders"] = int(joined["order_id"].nunique())
     print(json.dumps(summary, indent=2))
     return 0
 
