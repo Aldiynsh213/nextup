@@ -32,3 +32,18 @@ Dates such as `03/04/2025` are ambiguous. The parser follows the configured loca
 - `conversion_details`: input, converted, and invalid counts plus the parsing settings used.
 
 A successful run means the configured workflow completed. It does not mean every source value was valid. Review the report and the business rules before using the output for financial or operational decisions.
+
+
+## Row-level schema validation
+
+Use the validation object in the cleaning configuration when the data has rules beyond column presence:
+
+- not_null_columns lists fields that must contain a value.
+- unique_columns lists fields that should not repeat.
+- allowed_values maps a field to its accepted values.
+- fail_on_error stops the run when one of these checks finds a violation.
+
+The report records counts by rule and a bounded sample of row numbers and issue types. It does not include raw invalid values by default. Set include_invalid_values to true only when the report is stored somewhere appropriate for the data it contains.
+
+max_issue_samples controls the number of issue examples in the report. Its default is 100. The counts still include every detected issue.
+
