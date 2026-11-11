@@ -135,14 +135,15 @@ Rows with missing business keys are kept during key-based deduplication. SheetFl
 
 ## Reproduce the 30,900-row test
 
-A small generator creates two CSV files with different column orders, repeated order IDs, mixed date formats, and currency values. The expected result is 30,000 unique orders after global deduplication.
+A small generator creates two order exports with different column orders, repeated order IDs, mixed date formats, and currency values. It also creates a customer table and a clean order file for a one-to-many join check. The append workflow should leave 30,000 unique orders after global deduplication; the join workflow should return 30,000 customer-order rows.
 
 ```bash
 python benchmarks/generate_orders.py --output-dir benchmarks/generated
 sheetflow run --config benchmarks/pipeline.json
+sheetflow run --config benchmarks/join-pipeline.json
 ```
 
-See [the benchmark notes](benchmarks/README.md) for the data layout and how to compare runtimes. The generator creates synthetic data; the benchmark does not claim a production throughput figure.
+GitHub Actions runs both the append and customer-order join checks. See [the benchmark notes](benchmarks/README.md) for the data layout and how to compare runtimes. The generator creates synthetic data; the benchmark does not claim a production throughput figure.
 
 ## Run the tests
 
