@@ -28,6 +28,7 @@ def test_currency_parser_handles_usd_and_indonesian_formats():
                 "usd_amount": {"decimal_separator": ".", "thousands_separator": ","},
                 "idr_amount": {"decimal_separator": ",", "thousands_separator": "."},
             },
+            "drop_empty_rows": False,
         },
     )
 
@@ -55,6 +56,7 @@ def test_mixed_date_parser_respects_dayfirst():
         {
             "date_columns": ["order_date"],
             "date_options": {"order_date": {"dayfirst": True}},
+            "drop_empty_rows": False,
         },
     )
 
