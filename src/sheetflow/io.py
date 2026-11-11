@@ -12,14 +12,18 @@ from sheetflow.core import DataValidationError
 
 
 def read_table(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
-    """Read CSV or Excel. CSV values start as strings to preserve identifiers."""
+    """Read CSV or Excel data, keeping CSV identifiers as strings."""
     source = Path(path)
     if not source.exists() or not source.is_file():
         raise FileNotFoundError(f"Input file not found: {source}")
     suffix = source.suffix.lower()
     if suffix == ".csv":
         return pd.read_csv(
-            source, dtype="string", encoding="utf-8-sig", keep_default_na=True
+            source,
+            dtype="string",
+            encoding="utf-8-sig",
+            keep_default_na=False,
+            na_values=[""],
         )
     if suffix in {".xlsx", ".xlsm"}:
         return pd.read_excel(
