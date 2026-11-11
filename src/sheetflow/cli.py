@@ -12,6 +12,7 @@ from sheetflow.core import (
     DataValidationError,
     clean_dataframe,
     combine_frames,
+    deduplicate_dataframe,
     profile_dataframe,
 )
 from sheetflow.io import load_json, read_table, write_json, write_table
@@ -27,6 +28,7 @@ def _parser() -> argparse.ArgumentParser:
     profile = sub.add_parser("profile", help="Generate a data-quality profile.")
     profile.add_argument("input")
     profile.add_argument("--output")
+    profile.add_argument("--key-columns", nargs="+")
 
     clean = sub.add_parser("clean", help="Clean one CSV or Excel file.")
     clean.add_argument("input")
@@ -45,6 +47,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     combine.add_argument("--source-column")
     combine.add_argument("--cleaning-config")
+    combine.add_argument("--deduplicate-after-combine", action="store_true")
+    combine.add_argument("--deduplicate-on", nargs="+")
+    combine.add_argument("--keep", choices=["first", "last"], default="first")
     combine.add_argument("--output", "-o", required=True)
     combine.add_argument("--report")
 
@@ -70,6 +75,9 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
 
     cleaning = config.get("cleaning", {})
     combine = config.get("combine", {})
+    if not isinstance(cleaning, dict) or not isinstance(combine, dict):
+        raise DataValidationError("cleaning and combine settings must be JSON objects.")
+
     frames = []
     metrics = []
     for input_path in inputs:
@@ -89,15 +97,36 @@ def _run_pipeline(config_path: str) -> dict[str, Any]:
         source_column=combine.get("source_column"),
         validate=combine.get("validate"),
     )
+
+    dedup_metrics = None
+    if combine.get("deduplicate_after_combine", False):
+        dedup_keys = combine.get("deduplicate_on") or cleaning.get("deduplicate_on")
+        if not dedup_keys:
+            raise DataValidationError(
+                "deduplicate_after_combine requires combine.deduplicate_on "
+                "or cleaning.deduplicate_on."
+            )
+        combined, dedup_metrics = deduplicate_dataframe(
+            combined,
+            subset=dedup_keys,
+            keep=combine.get("keep", cleaning.get("keep", "first")),
+        )
+
     output = config.get("output", "output/combined.xlsx")
     write_table(combined, resolve(output))
+    profile_keys = (
+        combine.get("deduplicate_on")
+        or cleaning.get("deduplicate_on")
+        or combine.get("on")
+    )
     report = {
         "pipeline": config_file.name,
         "input_count": len(inputs),
         "mode": mode,
         "input_cleaning": metrics,
+        "post_combine_deduplication": dedup_metrics,
         "output": output,
-        "output_profile": profile_dataframe(combined),
+        "output_profile": profile_dataframe(combined, key_columns=profile_keys),
     }
     if config.get("report"):
         write_json(report, resolve(config["report"]))
@@ -108,20 +137,23 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.command == "profile":
-            report = profile_dataframe(read_table(args.input))
+            report = profile_dataframe(
+                read_table(args.input), key_columns=args.key_columns
+            )
             if args.output:
                 write_json(report, args.output)
             print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
             return 0
 
         if args.command == "clean":
-            cleaned, metrics = clean_dataframe(
-                read_table(args.input), _clean_options(args.config)
-            )
+            cleaning = _clean_options(args.config)
+            cleaned, metrics = clean_dataframe(read_table(args.input), cleaning)
             write_table(cleaned, args.output)
             report = {
                 "cleaning": metrics,
-                "output_profile": profile_dataframe(cleaned),
+                "output_profile": profile_dataframe(
+                    cleaned, key_columns=cleaning.get("deduplicate_on")
+                ),
             }
             if args.report:
                 write_json(report, args.report)
@@ -145,11 +177,27 @@ def main(argv: list[str] | None = None) -> int:
                 source_column=args.source_column,
                 validate=args.validate,
             )
+
+            dedup_metrics = None
+            dedup_keys = args.deduplicate_on or cleaning.get("deduplicate_on")
+            if args.deduplicate_after_combine:
+                if not dedup_keys:
+                    raise DataValidationError(
+                        "--deduplicate-after-combine requires --deduplicate-on "
+                        "or deduplicate_on in the cleaning config."
+                    )
+                combined, dedup_metrics = deduplicate_dataframe(
+                    combined, subset=dedup_keys, keep=args.keep
+                )
+
             write_table(combined, args.output)
             report = {
                 "input_cleaning": metrics,
+                "post_combine_deduplication": dedup_metrics,
                 "output": args.output,
-                "output_profile": profile_dataframe(combined),
+                "output_profile": profile_dataframe(
+                    combined, key_columns=dedup_keys or args.on
+                ),
             }
             if args.report:
                 write_json(report, args.report)
