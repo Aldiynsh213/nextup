@@ -20,7 +20,7 @@ Do not mix locales in one column unless the input is normalized first. If a colu
 
 ## Dates
 
-SheetFlow tries any explicitly configured formats first, then uses pandas mixed-format parsing. Set dayfirst when the source uses dates such as 12/03/2025 to mean 12 March.
+SheetFlow tries explicitly configured formats first, then handles ISO dates and common locale formats before using a date parser for remaining values. Set dayfirst when the source uses dates such as 12/03/2025 to mean 12 March.
 
 Some dates cannot be interpreted safely without a locale rule. For example, 03/04/2025 can mean 3 April or 4 March. Set dayfirst to match the source; do not rely on an automatic guess.
 
@@ -31,3 +31,17 @@ Use validate when the relationship between keys is known. For example, a custome
 ## Review before publishing
 
 Cleaning rules can remove rows or change values. Keep an untouched copy of the source files, review conversion failures, and compare row counts and business totals before using the output in a report.
+
+
+## Row-level schema checks
+
+Use the validation object to describe rules that apply to individual records:
+
+- not_null_columns lists fields that must have a value.
+- unique_columns lists fields that should not repeat.
+- allowed_values maps a column to its accepted values.
+- fail_on_error stops the cleaning step when any of those checks fail.
+
+The report includes counts for each rule and a bounded sample of row numbers and issue types. By default, it does not include the raw invalid values. Set include_invalid_values to true only when you have a reason to include those values in the report.
+
+max_issue_samples controls how many issue examples are kept. The default is 100. This limit applies to the examples in the report, not to the counts; all detected issues are still counted.
