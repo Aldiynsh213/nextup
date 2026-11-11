@@ -1,0 +1,21 @@
+{
+  "inputs": [
+    "generated/customers.csv",
+    "generated/orders_unique.csv"
+  ],
+  "cleaning": {
+    "normalize_columns": true,
+    "trim_strings": true,
+    "drop_empty_rows": true,
+    "deduplicate": true
+  },
+  "combine": {
+    "mode": "join",
+    "on": ["customer_id"],
+    "how": "left",
+    "validate": "one_to_many",
+    "profile_key_columns": ["order_id"]
+  },
+  "output": "../output/orders_joined.xlsx",
+  "report": "../output/orders_join_quality.json"
+}
