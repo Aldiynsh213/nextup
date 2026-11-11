@@ -138,7 +138,7 @@ def _parse_numeric_value(
 
     # Remove common currency codes and Unicode currency symbols, but do not
     # silently discard arbitrary letters that could indicate malformed data.
-    text = re.sub(r"(?i)^(?:USD|IDR|EUR|GBP|JPY|RP)\s*", "", text)
+    text = re.sub(r"(?i)^(?:US\$|C\$|A\$|NZ\$|S\$|USD|IDR|EUR|GBP|JPY|RP\.?)\s*", "", text)
     text = re.sub(r"(?i)\s*(?:USD|IDR|EUR|GBP|JPY|RP)$", "", text)
     text = "".join(
         character
@@ -147,7 +147,18 @@ def _parse_numeric_value(
     )
     text = re.sub(r"\s+", "", text)
 
-    if thousands_separator:
+    if thousands_separator and thousands_separator in text:
+        integer_part = text.split(decimal_separator, 1)[0]
+        unsigned_integer = integer_part.lstrip("+-")
+        groups = unsigned_integer.split(thousands_separator)
+        if len(groups) > 1 and (
+            not 1 <= len(groups[0]) <= 3
+            or not groups[0].isdigit()
+            or any(len(group) != 3 or not group.isdigit() for group in groups[1:])
+        ):
+            return pd.NA
+        if decimal_separator in text and thousands_separator in text.split(decimal_separator, 1)[1]:
+            return pd.NA
         text = text.replace(thousands_separator, "")
     if decimal_separator != ".":
         text = text.replace(decimal_separator, ".")
