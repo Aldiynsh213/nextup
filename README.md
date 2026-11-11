@@ -8,7 +8,7 @@ This portfolio project demonstrates Python, pandas, Excel automation, data clean
 
 ## Features
 
-- Reads and writes CSV, XLSX, and XLSM files.
+- Reads CSV, XLSX, and XLSM files; writes CSV and XLSX outputs.
 - Preserves identifiers such as 0007 as text when reading CSV files.
 - Normalizes headers to unique snake_case names.
 - Trims text and converts blank strings to missing values.
