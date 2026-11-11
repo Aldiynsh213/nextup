@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 import unicodedata
 from collections.abc import Mapping, Sequence
 from numbers import Number
@@ -196,24 +197,8 @@ def _parse_date_series(
     formats = config.get("formats", [])
     if not isinstance(formats, Sequence) or isinstance(formats, str):
         raise DataValidationError("date formats must be a JSON array of format strings.")
-
-    parsed = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
-
-    def try_format(date_format: str, *, iso: bool = False) -> None:
-        pending = parsed.isna() & series.notna()
-        if not pending.any():
-            return
-        kwargs = {"format": date_format, "errors": "coerce"}
-        if not iso:
-            kwargs["dayfirst"] = dayfirst
-        candidate = pd.to_datetime(series.loc[pending], **kwargs)
-        parsed.loc[pending] = candidate
-
-    for date_format in formats:
-        try_format(date_format)
-
-    # ISO dates have an unambiguous year-month-day order.
-    try_format("ISO8601", iso=True)
+    if any(not isinstance(item, str) for item in formats):
+        raise DataValidationError("Each date format must be a string.")
 
     locale_formats = (
         ["%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d/%m/%y", "%d-%m-%y",
@@ -222,18 +207,52 @@ def _parse_date_series(
         else ["%m/%d/%Y", "%m-%d-%Y", "%m.%d.%Y", "%m/%d/%y", "%m-%d-%y",
               "%b %d %Y", "%B %d, %Y"]
     )
-    for date_format in locale_formats:
-        try_format(date_format)
+    candidate_formats = [*formats, *locale_formats]
+    parsed_values: list[Any] = []
 
-    pending = parsed.isna() & series.notna()
-    if pending.any():
-        parsed.loc[pending] = pd.to_datetime(
-            series.loc[pending],
-            format="mixed",
-            errors="coerce",
-            dayfirst=dayfirst,
-        )
-    return parsed
+    for value in series:
+        if pd.isna(value):
+            parsed_values.append(pd.NaT)
+            continue
+        if isinstance(value, (datetime, pd.Timestamp)):
+            parsed_values.append(value)
+            continue
+
+        text = str(value).strip()
+        if not text:
+            parsed_values.append(pd.NaT)
+            continue
+
+        parsed_value = None
+        # ISO values always keep year-month-day order, regardless of dayfirst.
+        try:
+            parsed_value = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+        if parsed_value is None:
+            for date_format in candidate_formats:
+                try:
+                    parsed_value = datetime.strptime(text, date_format)
+                    break
+                except ValueError:
+                    continue
+
+        if parsed_value is None:
+            fallback = pd.to_datetime(
+                text,
+                format="mixed",
+                errors="coerce",
+                dayfirst=dayfirst,
+            )
+            parsed_value = fallback
+
+        parsed_values.append(parsed_value)
+
+    return pd.Series(
+        pd.to_datetime(parsed_values, errors="coerce"),
+        index=series.index,
+    )
 
 def clean_dataframe(
     frame: pd.DataFrame,
