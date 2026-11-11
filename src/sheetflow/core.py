@@ -7,11 +7,11 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from numbers import Number
-
-from dateutil.parser import ParserError, parse as parse_date
 from typing import Any
 
 import pandas as pd
+from dateutil.parser import ParserError
+from dateutil.parser import parse as parse_date
 
 
 class DataValidationError(ValueError):
