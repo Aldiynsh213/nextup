@@ -1,4 +1,4 @@
-"""Create a repeatable 30,900-row order dataset for SheetFlow benchmarks."""
+"""Create repeatable order and customer datasets for SheetFlow benchmarks."""
 
 from __future__ import annotations
 
@@ -36,6 +36,14 @@ def make_order(order_number: int) -> dict[str, str]:
         "Amount ($)": amount_value,
         "Status": ("paid", "pending", "refunded")[order_number % 3],
         "Channel": ("web", "store", "marketplace")[order_number % 3],
+    }
+
+
+def make_customer(customer_number: int) -> dict[str, str]:
+    return {
+        "Customer ID": f"CUST-{customer_number:06d}",
+        "Customer Name": f"Customer {customer_number:06d}",
+        "Segment": ("SMB", "Enterprise", "Consumer")[customer_number % 3],
     }
 
 
@@ -79,6 +87,16 @@ def generate(output_dir: Path, seed: int = 20261112) -> dict[str, int]:
 
     write_csv(output_dir / "orders_a.csv", source_a, columns_a)
     write_csv(output_dir / "orders_b.csv", source_b, columns_b)
+    write_csv(
+        output_dir / "orders_unique.csv",
+        unique_orders,
+        columns_b,
+    )
+    write_csv(
+        output_dir / "customers.csv",
+        [make_customer(number) for number in range(1, 5001)],
+        ["Customer ID", "Customer Name", "Segment"],
+    )
 
     metadata = {
         "seed": seed,
@@ -86,6 +104,8 @@ def generate(output_dir: Path, seed: int = 20261112) -> dict[str, int]:
         "source_b_rows": len(source_b),
         "input_rows": len(source_a) + len(source_b),
         "unique_order_ids": len(unique_orders),
+        "customer_rows": 5000,
+        "join_order_rows": len(unique_orders),
         "duplicates_inside_source_a": 449,
         "duplicates_across_sources": 451,
         "expected_rows_after_per_file_dedup_then_append": 30451,
