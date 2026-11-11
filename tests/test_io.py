@@ -16,6 +16,14 @@ def test_csv_round_trip_preserves_leading_zero_ids(tmp_path):
     assert read_table(output).loc[0, "customer_id"] == "0007"
 
 
+def test_csv_keeps_na_as_text_but_reads_empty_cells_as_missing(tmp_path):
+    source = tmp_path / "source.csv"
+    source.write_text("code,comment\nNA,\n", encoding="utf-8")
+    frame = read_table(source)
+    assert frame.loc[0, "code"] == "NA"
+    assert pd.isna(frame.loc[0, "comment"])
+
+
 def test_excel_round_trip(tmp_path):
     source = tmp_path / "source.xlsx"
     frame = pd.DataFrame({"customer_id": ["0007"], "revenue": [12.5]})
