@@ -26,6 +26,7 @@ Install SheetFlow first, then run:
 
 ```bash
 sheetflow run --config benchmarks/pipeline.json
+sheetflow run --config benchmarks/join-pipeline.json
 ```
 
 The output workbook and JSON report are written to the repository's `output/` folder.
@@ -39,5 +40,7 @@ The output workbook and JSON report are written to the repository's `output/` fo
 - The report should show zero remaining duplicates for the `order_id` business key.
 - Invalid amount values should be counted in `coerced_values`; valid currency strings should convert.
 - The mixed date formats should parse with `dayfirst: true`.
+
+A second generated dataset contains 5,000 customers and 30,000 unique orders. The join pipeline checks a customer-to-orders one-to-many relationship and should return 30,000 joined rows. GitHub Actions runs both the append and join checks on each push.
 
 To compare runtimes on your own machine, use a shell timer around the pipeline command. Record the machine, Python version, pandas version, and run conditions alongside the result. This repository does not publish a fixed performance claim because hardware and file storage affect the timings.
