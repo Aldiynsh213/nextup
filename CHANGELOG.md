@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - 2026-11-12
+
+- Validate decimal and thousands separator settings before parsing numeric values.
+- Add regression coverage for currency codes, malformed thousands groups, and invalid separator settings.
+- Extend the 30,900-row benchmark to check that valid amounts and dates remain intact after global deduplication.
+
 ## 1.1.0
 
 - Added deduplication after append, using explicit business keys.
