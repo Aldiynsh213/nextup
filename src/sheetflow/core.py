@@ -125,10 +125,14 @@ def _parse_numeric_value(
     if not text:
         return pd.NA
 
-    if len(decimal_separator) != 1:
-        raise DataValidationError("decimal_separator must be one character.")
-    if thousands_separator and len(thousands_separator) != 1:
-        raise DataValidationError("thousands_separator must be empty or one character.")
+    if not isinstance(decimal_separator, str) or len(decimal_separator) != 1:
+        raise DataValidationError("decimal_separator must be a one-character string.")
+    if not isinstance(thousands_separator, str) or (
+        thousands_separator and len(thousands_separator) != 1
+    ):
+        raise DataValidationError(
+            "thousands_separator must be an empty string or a one-character string."
+        )
     if decimal_separator == thousands_separator and thousands_separator:
         raise DataValidationError(
             "decimal_separator and thousands_separator must be different."
