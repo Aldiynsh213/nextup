@@ -220,3 +220,56 @@ def test_schema_validation_can_fail_fast():
                 }
             },
         )
+
+
+def test_currency_parser_handles_currency_codes_and_rejects_bad_grouping():
+    frame = pd.DataFrame(
+        {
+            "amount": [
+                "US$ 1,234.50",
+                "1,234.50 USD",
+                "1,23.45",
+                "12,34,567.89",
+            ]
+        }
+    )
+    cleaned, metrics = clean_dataframe(
+        frame,
+        {
+            "numeric_columns": ["amount"],
+            "numeric_options": {
+                "amount": {"decimal_separator": ".", "thousands_separator": ","}
+            },
+            "deduplicate": False,
+            "drop_empty_rows": False,
+        },
+    )
+
+    assert cleaned.loc[0, "amount"] == 1234.50
+    assert cleaned.loc[1, "amount"] == 1234.50
+    assert pd.isna(cleaned.loc[2, "amount"])
+    assert pd.isna(cleaned.loc[3, "amount"])
+    assert metrics["coerced_values"]["amount"] == 2
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("decimal_separator", None),
+        ("decimal_separator", 1),
+        ("thousands_separator", None),
+        ("thousands_separator", 123),
+    ],
+)
+def test_numeric_parser_rejects_non_string_separator_options(option, value):
+    frame = pd.DataFrame({"amount": ["1,234.50"]})
+    with pytest.raises(DataValidationError, match=option):
+        clean_dataframe(
+            frame,
+            {
+                "numeric_columns": ["amount"],
+                "numeric_options": {"amount": {option: value}},
+                "deduplicate": False,
+                "drop_empty_rows": False,
+            },
+        )
