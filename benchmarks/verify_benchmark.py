@@ -27,6 +27,9 @@ def main() -> int:
     assert report["output_profile"]["business_key"]["duplicate_rows"] == 0
     assert report["output_profile"]["business_key"]["unique_keys"] == 30_000
     assert output["source_file"].nunique() == 2
+    invalid_amounts = int(output["amount"].isna().sum())
+    assert invalid_amounts == 1_500
+    assert output["order_date"].notna().all()
 
     date_failures = sum(
         item["coerced_values"]["order_date"]
@@ -45,6 +48,7 @@ def main() -> int:
             "business_key"
         ]["duplicate_rows"],
         "date_conversion_failures": date_failures,
+        "invalid_amounts_after_global_dedup": invalid_amounts,
     }
     join_report = json.loads(
         (root / "output" / "orders_join_quality.json").read_text(encoding="utf-8")
